@@ -1,0 +1,22 @@
+# Baseline simulation config (Oct 29 scope). Defaults from docs/cfar-sim-plan.md.
+# None of these values are confirmed by the sponsor.
+
+[band]
+f_lo_hz = 10.0            # SYS-01 search band, TBD with NNSS
+f_hi_hz = 1000.0          # VFD source ceiling; was 500.0
+
+[acq]
+fs_hz = 4000.0            # after decimation; SUB-03.2 needs >= 2.5 x f_hi_hz
+nfft = 8192               # 2.05 s window, 0.49 Hz bins, 2028 in band
+window = "hann"           # ENBW 1.5 bins
+
+[noise]
+sigma = 1.0               # white Gaussian, per-sample standard deviation
+
+[source]
+kind = "tone"
+f0_hz = "uniform"         # drawn over the band each trial, or a fixed value in Hz
+cn0_dbhz = 30.0           # tone power over noise density
+
+[run]
+seed = 1                  # SYS-09: per-trial RNG is seeded from (seed, trial)
