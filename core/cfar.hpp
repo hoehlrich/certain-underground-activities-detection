@@ -5,7 +5,7 @@
 #include <span>
 #include <vector>
 
-#include "cfar/spectrum.hpp"
+#include "core/spectrum.hpp"
 
 namespace cfar {
 

@@ -7,12 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "cfar/config.hpp"
+#include "core/config.hpp"
 
 namespace cfar::sim {
 
 // Simulation config: the processing sections plus [noise], [source], [run] and
-// [pfa_check], [pd_sweep] and [roc]. Defaults match docs/cfar-sim-plan.md; none are confirmed by the sponsor.
+// [pfa_check], [pd_sweep] and [roc]. None of the defaults are confirmed by the sponsor.
 struct SimConfig {
     ProcessingConfig proc;
     // [noise]

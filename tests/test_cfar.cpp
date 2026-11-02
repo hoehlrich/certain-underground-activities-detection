@@ -8,11 +8,11 @@
 
 #include <gtest/gtest.h>
 
-#include "cfar/cfar.hpp"
-#include "cfar/config.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/pfa.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "core/config.hpp"
+#include "sim/config.hpp"
+#include "sim/pfa.hpp"
+#include "core/spectrum.hpp"
 
 namespace {
 

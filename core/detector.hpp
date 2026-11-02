@@ -4,9 +4,9 @@
 #include <span>
 #include <vector>
 
-#include "cfar/cfar.hpp"
-#include "cfar/config.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "core/config.hpp"
+#include "core/spectrum.hpp"
 
 namespace cfar {
 

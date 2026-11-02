@@ -1,18 +1,17 @@
 #pragma once
 
 #include <cstddef>
-#include <filesystem>
 #include <optional>
 #include <string>
 
-#include "cfar/cfar.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "core/spectrum.hpp"
 
 namespace cfar {
 
 // Processing parameters shared by simulation and real data: the [band], [acq],
-// [false_alarm] and [cfar] sections of a config. Defaults match
-// docs/cfar-sim-plan.md; none are confirmed by the sponsor.
+// [false_alarm] and [cfar] sections of a config (loaded by io/config_loader).
+// None of the defaults are confirmed by the sponsor.
 struct ProcessingConfig {
     // [band] SYS-01 search band, TBD
     double f_lo_hz = 10.0;
@@ -29,11 +28,7 @@ struct ProcessingConfig {
     std::size_t train_per_side = 16;
 };
 
-// Reads the processing sections of a TOML config; other sections are ignored.
-// Throws std::runtime_error on a parse error or a bad value.
-ProcessingConfig load_processing_config(const std::filesystem::path& path);
-
-// Checks the values in cfg, including SUB-03.2; load_processing_config calls this.
+// Checks the values in cfg, including SUB-03.2. Throws std::runtime_error.
 void validate(const ProcessingConfig& cfg);
 
 BinRange band_bins(const ProcessingConfig& cfg);

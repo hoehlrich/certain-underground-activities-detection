@@ -1,4 +1,4 @@
-#include "cfar/sim/pd.hpp"
+#include "sim/pd.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,10 +6,10 @@
 #include <numbers>
 #include <random>
 
-#include "cfar/detector.hpp"
-#include "cfar/sim/noise.hpp"
-#include "cfar/sim/signal.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/detector.hpp"
+#include "sim/noise.hpp"
+#include "sim/signal.hpp"
+#include "core/spectrum.hpp"
 
 namespace cfar::sim {
 

@@ -4,8 +4,8 @@ CA-CFAR detector for a low-frequency magnetic tone in HFR-1 rod recordings from
 an Analog Discovery 3. Part of the 8.9 Quantum Sensors senior design capstone
 (Colorado School of Mines, NNSS sponsor).
 
-The detector library processes FFT power spectra and has no dependency on the
-simulation code.
+The detection code in `core/` has no dependency on `io/` or `sim/`; a CTest
+check enforces it.
 
 ## Build and test
 
@@ -48,12 +48,12 @@ known-noise bound, and prints the C/N0 needed for Pd = 0.9.
 
 | Path | Contents |
 | --- | --- |
-| `include/cfar/`, `src/` | Detector library (target `cfar`): spectrum, CA-CFAR, per-window detector, processing config. |
-| `include/cfar/sim/`, `src/sim/` | Signal, noise, simulation config, Pfa and Pd Monte Carlo. |
+| `core/` | Detection core (target `core`): spectrum, CA-CFAR, detector, config structs and validation. No I/O. |
+| `io/` | Config loading (target `io`). Depends on `core` only. |
+| `sim/` | Tone and noise generators, simulation config, Marcum Q bound, Pfa, Pd and ROC Monte Carlo (target `sim`). |
 | `apps/` | `sim_main`, `pfa_check`, `pd_sweep`, `roc` |
 | `tests/` | GoogleTest suite |
+| `cmake/` | Include-boundary check run by CTest |
 | `configs/` | TOML configs |
 | `scripts/` | Plotting |
-| `docs/cfar-sim-plan.md` | Signal model, parameters, CFAR math, validation plan |
-| `docs/pd-results.md` | Pd vs SNR and ROC results, and the C/N0 needed for Pd = 0.9 |
-
+| `docs/img/` | Pd vs SNR and ROC figures |

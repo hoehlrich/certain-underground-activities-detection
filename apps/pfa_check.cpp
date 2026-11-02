@@ -9,9 +9,9 @@
 #include <iostream>
 #include <vector>
 
-#include "cfar/config.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/pfa.hpp"
+#include "core/config.hpp"
+#include "sim/config.hpp"
+#include "sim/pfa.hpp"
 
 int main(int argc, char** argv) {
     const std::filesystem::path config_path = argc > 1 ? argv[1] : "configs/baseline.toml";

@@ -1,11 +1,11 @@
-#include "cfar/sim/pfa.hpp"
+#include "sim/pfa.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "cfar/cfar.hpp"
-#include "cfar/sim/noise.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "sim/noise.hpp"
+#include "core/spectrum.hpp"
 
 namespace cfar::sim {
 

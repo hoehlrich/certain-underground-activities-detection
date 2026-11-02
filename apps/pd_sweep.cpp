@@ -11,9 +11,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "cfar/config.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/pd.hpp"
+#include "core/config.hpp"
+#include "sim/config.hpp"
+#include "sim/pd.hpp"
 
 int main(int argc, char** argv) {
     const std::filesystem::path config_path = argc > 1 ? argv[1] : "configs/baseline.toml";

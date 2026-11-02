@@ -1,4 +1,4 @@
-# Baseline config (Oct 29 scope). Defaults from docs/cfar-sim-plan.md.
+# Baseline config (Oct 29 scope).
 # None of these values are confirmed by the sponsor.
 #
 # [band], [acq], [false_alarm] and [cfar] are processing settings, read by the

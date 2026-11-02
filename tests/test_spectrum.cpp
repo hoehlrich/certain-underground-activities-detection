@@ -9,10 +9,10 @@
 
 #include <gtest/gtest.h>
 
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/noise.hpp"
-#include "cfar/sim/signal.hpp"
-#include "cfar/spectrum.hpp"
+#include "sim/config.hpp"
+#include "sim/noise.hpp"
+#include "sim/signal.hpp"
+#include "core/spectrum.hpp"
 
 namespace {
 

@@ -5,7 +5,7 @@
 #include <span>
 #include <vector>
 
-#include "cfar/sim/config.hpp"
+#include "sim/config.hpp"
 
 namespace cfar::sim {
 

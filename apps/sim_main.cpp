@@ -11,13 +11,13 @@
 #include <random>
 #include <vector>
 
-#include "cfar/cfar.hpp"
-#include "cfar/config.hpp"
-#include "cfar/detector.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/noise.hpp"
-#include "cfar/sim/signal.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "core/config.hpp"
+#include "core/detector.hpp"
+#include "sim/config.hpp"
+#include "sim/noise.hpp"
+#include "sim/signal.hpp"
+#include "core/spectrum.hpp"
 
 int main(int argc, char** argv) {
     const std::filesystem::path config_path = argc > 1 ? argv[1] : "configs/baseline.toml";

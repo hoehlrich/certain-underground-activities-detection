@@ -1,4 +1,4 @@
-#include "cfar/sim/noise.hpp"
+#include "sim/noise.hpp"
 
 namespace cfar::sim {
 

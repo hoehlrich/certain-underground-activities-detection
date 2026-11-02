@@ -1,4 +1,4 @@
-#include "cfar/spectrum.hpp"
+#include "core/spectrum.hpp"
 
 #include <cmath>
 #include <complex>

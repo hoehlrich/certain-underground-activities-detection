@@ -30,22 +30,26 @@ find_package(Threads REQUIRED) # pocketfft uses std::thread for its plan cache
 
 set(CFAR_WARNINGS -Wall -Wextra -Wpedantic)
 
-# Detector library (deliverable D-09): spectrum, CA-CFAR, detector, processing config.
-# Must not depend on cfar_sim.
-add_library(cfar src/spectrum.cpp src/cfar.cpp src/config.cpp src/detector.cpp)
-target_include_directories(cfar PUBLIC include)
-target_link_libraries(cfar PRIVATE pocketfft Threads::Threads tomlplusplus::tomlplusplus)
-target_compile_options(cfar PRIVATE ${CFAR_WARNINGS})
+# core: pure DSP and detection. Links nothing else in this repo; no file I/O.
+add_library(core core/spectrum.cpp core/cfar.cpp core/config.cpp core/detector.cpp)
+target_include_directories(core PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(core PRIVATE pocketfft Threads::Threads)
+target_compile_options(core PRIVATE ${CFAR_WARNINGS})
 
-# Simulation code: signal and noise models, sim config, Pfa and Pd Monte Carlo, theory.
-add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp src/sim/pfa.cpp
-  src/sim/theory.cpp src/sim/pd.cpp)
-target_link_libraries(cfar_sim PUBLIC cfar PRIVATE tomlplusplus::tomlplusplus)
-target_compile_options(cfar_sim PRIVATE ${CFAR_WARNINGS})
+# io: config loading; later sample sources and loggers. Depends on core only.
+add_library(io io/config_loader.cpp)
+target_link_libraries(io PUBLIC core PRIVATE tomlplusplus::tomlplusplus)
+target_compile_options(io PRIVATE ${CFAR_WARNINGS})
+
+# sim: signal and noise models, sim config, Monte Carlo runners, detection theory.
+add_library(sim sim/signal.cpp sim/noise.cpp sim/config.cpp sim/pfa.cpp sim/theory.cpp
+  sim/pd.cpp)
+target_link_libraries(sim PUBLIC core io PRIVATE tomlplusplus::tomlplusplus)
+target_compile_options(sim PRIVATE ${CFAR_WARNINGS})
 
 foreach(app sim_main pfa_check pd_sweep roc)
   add_executable(${app} apps/${app}.cpp)
-  target_link_libraries(${app} PRIVATE cfar_sim)
+  target_link_libraries(${app} PRIVATE sim)
   target_compile_options(${app} PRIVATE ${CFAR_WARNINGS})
 endforeach()
 
@@ -54,8 +58,15 @@ find_package(GTest REQUIRED)
 include(GoogleTest)
 foreach(test test_spectrum test_cfar test_pd)
   add_executable(${test} tests/${test}.cpp)
-  target_link_libraries(${test} PRIVATE cfar_sim GTest::gtest_main)
+  target_link_libraries(${test} PRIVATE sim GTest::gtest_main)
   target_compile_options(${test} PRIVATE ${CFAR_WARNINGS})
   target_compile_definitions(${test} PRIVATE CFAR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   gtest_discover_tests(${test} DISCOVERY_TIMEOUT 30)
 endforeach()
+
+# Dependency rules, checked on the sources: core includes nothing from io, sim or
+# apps; io includes nothing from sim or apps.
+add_test(NAME boundary.core COMMAND ${CMAKE_COMMAND} -DDIR=${PROJECT_SOURCE_DIR}/core
+  "-DFORBIDDEN=sim;io;apps" -P ${PROJECT_SOURCE_DIR}/cmake/check_includes.cmake)
+add_test(NAME boundary.io COMMAND ${CMAKE_COMMAND} -DDIR=${PROJECT_SOURCE_DIR}/io
+  "-DFORBIDDEN=sim;apps" -P ${PROJECT_SOURCE_DIR}/cmake/check_includes.cmake)

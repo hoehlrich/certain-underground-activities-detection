@@ -1,4 +1,4 @@
-#include "cfar/detector.hpp"
+#include "core/detector.hpp"
 
 #include <algorithm>
 #include <cmath>

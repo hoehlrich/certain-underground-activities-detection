@@ -1,10 +1,12 @@
-#include "cfar/sim/config.hpp"
+#include "sim/config.hpp"
 
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <toml++/toml.hpp>
+
+#include "io/config_loader.hpp"
 
 namespace cfar::sim {
 
@@ -33,7 +35,7 @@ void read_numbers(toml::node_view<toml::node> node, const char* key, std::vector
 
 SimConfig load_config(const std::filesystem::path& path) {
     SimConfig cfg;
-    cfg.proc = load_processing_config(path);
+    cfg.proc = io::load_processing_config(path);
 
     toml::table tbl;
     try {

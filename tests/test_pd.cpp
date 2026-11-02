@@ -7,15 +7,15 @@
 
 #include <gtest/gtest.h>
 
-#include "cfar/cfar.hpp"
-#include "cfar/config.hpp"
-#include "cfar/detector.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/noise.hpp"
-#include "cfar/sim/pd.hpp"
-#include "cfar/sim/signal.hpp"
-#include "cfar/sim/theory.hpp"
-#include "cfar/spectrum.hpp"
+#include "core/cfar.hpp"
+#include "core/config.hpp"
+#include "core/detector.hpp"
+#include "sim/config.hpp"
+#include "sim/noise.hpp"
+#include "sim/pd.hpp"
+#include "sim/signal.hpp"
+#include "sim/theory.hpp"
+#include "core/spectrum.hpp"
 
 namespace {
 

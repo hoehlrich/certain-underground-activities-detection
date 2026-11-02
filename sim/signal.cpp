@@ -1,4 +1,4 @@
-#include "cfar/sim/signal.hpp"
+#include "sim/signal.hpp"
 
 #include <cmath>
 #include <cstddef>

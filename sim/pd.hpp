@@ -5,10 +5,10 @@
 #include <span>
 #include <vector>
 
-#include "cfar/config.hpp"
-#include "cfar/sim/config.hpp"
-#include "cfar/sim/pfa.hpp"
-#include "cfar/sim/theory.hpp"
+#include "core/config.hpp"
+#include "sim/config.hpp"
+#include "sim/pfa.hpp"
+#include "sim/theory.hpp"
 
 namespace cfar::sim {
 
