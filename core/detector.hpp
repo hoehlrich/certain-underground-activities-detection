@@ -10,8 +10,8 @@
 
 namespace cfar {
 
-// One detection in a window (SYS-05 outputs): a run of adjacent bins over
-// threshold, reported at its peak bin.
+// One detection in a window: a run of adjacent bins over threshold, reported at
+// its peak bin with its detection statistic and estimated SNR.
 struct Detection {
     std::size_t first_bin;  // cluster extent
     std::size_t last_bin;

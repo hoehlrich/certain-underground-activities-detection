@@ -13,22 +13,22 @@ namespace cfar {
 // [false_alarm] and [cfar] sections of a config (loaded by io/config_loader).
 // None of the defaults are confirmed by the sponsor.
 struct ProcessingConfig {
-    // [band] SYS-01 search band, TBD
+    // [band] search band, TBD with the sponsor
     double f_lo_hz = 10.0;
     double f_hi_hz = 1000.0;
     // [acq]
-    double fs_hz = 4000.0;  // SUB-03.2: at least 2.5 x f_hi_hz
+    double fs_hz = 4000.0;  // at least 2.5 x f_hi_hz, leaving room for anti-alias roll-off
     std::size_t nfft = 8192;
     std::string window = "hann";
     // [false_alarm]
-    double pfa_window = 0.01;     // SUB-05.1 draft
+    double pfa_window = 0.01;     // draft target, not agreed with the sponsor
     std::optional<double> pfa_bin;  // empty means "derived" from pfa_window and the band
     // [cfar]
     std::size_t guard_per_side = 2;
     std::size_t train_per_side = 16;
 };
 
-// Checks the values in cfg, including SUB-03.2. Throws std::runtime_error.
+// Checks the values in cfg, including fs_hz >= 2.5 x f_hi_hz. Throws std::runtime_error.
 void validate(const ProcessingConfig& cfg);
 
 BinRange band_bins(const ProcessingConfig& cfg);

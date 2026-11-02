@@ -39,7 +39,7 @@ struct SimConfig {
     std::size_t roc_trials = 2000;
 };
 
-// Throws std::runtime_error on a parse error, a bad value or a SUB-03.2 violation.
+// Throws std::runtime_error on a parse error, a bad value or a sample rate below 2.5 x f_hi_hz.
 SimConfig load_config(const std::filesystem::path& path);
 
 // Checks the values in cfg, including cfg.proc; load_config calls this.

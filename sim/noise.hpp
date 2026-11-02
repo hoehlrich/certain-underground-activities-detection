@@ -6,7 +6,7 @@
 
 namespace cfar::sim {
 
-// Per-trial generator (SYS-09): the same (seed, trial) always gives the same
+// Per-trial generator, so every run reproduces: the same (seed, trial) always gives the same
 // stream, independent of how trials are ordered or split across threads.
 // std::normal_distribution is implementation-defined, so runs reproduce exactly
 // on the same toolchain, not necessarily across compilers.

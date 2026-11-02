@@ -166,7 +166,7 @@ def plot_roc(path, out):
     fig, ax = plt.subplots(figsize=(9, 4.5), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
     ax.axvline(0.01, color=MUTED, lw=1.0, zorder=1)
-    ax.text(0.01, 0.02, " 1% per window\n (SUB-05.1 draft)", color=INK_2, fontsize=9,
+    ax.text(0.01, 0.02, " 1% per window\n (draft target)", color=INK_2, fontsize=9,
             transform=ax.get_xaxis_transform(), va="bottom")
 
     for color, (snr, rs) in zip((SERIES, THRESHOLD, SLOT_3), sorted(curves.items())):

@@ -6,7 +6,7 @@ namespace cfar {
 
 void validate(const ProcessingConfig& cfg) {
     if (cfg.fs_hz < 2.5 * cfg.f_hi_hz) {
-        throw std::runtime_error("config: fs_hz must be at least 2.5 x f_hi_hz (SUB-03.2)");
+        throw std::runtime_error("config: fs_hz must be at least 2.5 x f_hi_hz");
     }
     if (!(0.0 < cfg.f_lo_hz && cfg.f_lo_hz < cfg.f_hi_hz)) {
         throw std::runtime_error("config: need 0 < f_lo_hz < f_hi_hz");
