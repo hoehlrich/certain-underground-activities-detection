@@ -42,3 +42,8 @@ snr_bin_db_max = 25.0
 snr_bin_db_step = 1.0
 trials = 2000             # TP-10 asks for at least 1000 per SNR
 pd_target = 0.9           # SUB-05.1 draft; the sweep reports the C/N0 that reaches it
+
+[roc]
+snr_bin_db = [12.0, 14.0, 16.0]   # fixed SNRs near the knee of the Pd curve
+pfa_window = [1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
+trials = 2000                     # per (SNR, Pfa) point; same trials as [pd_sweep]

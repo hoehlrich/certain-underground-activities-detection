@@ -131,7 +131,7 @@ A CA trial counts as detected when a reported peak lies within one bin of f0, wh
 
 1. **Pfa check:** noise only, at least 1e7 bin trials per config (about 1e4 windows). Pass when measured Pfa falls inside the 95% binomial interval of the design value, for design Pfa of 1e-3, 1e-4 and 1e-5, plus the derived baseline 5e-6. The interval uses the normal approximation, and the expected count is at least 100 hits at the lowest design value. Adjacent test cells are correlated, but a false alarm rarely spills into the next bin, so the binomial interval is close.
 2. **Pd vs SNR:** per-bin SNR (bin-centred) from 0 to 25 dB in 1 dB steps, 2000 trials each, ideal curve overlaid. Report the C/N0 needed for Pd = 0.9. Each trial reuses its noise, f0 and phase at every SNR, so the curve is smooth.
-3. **ROC (optional):** at three SNRs near the knee of the Pd curve, sweep Pfa from 1e-6 to 1e-1.
+3. **ROC:** at three SNRs near the knee of the Pd curve (12, 14, 16 dB per bin), sweep the per-window Pfa from 1e-4 to 0.5 (5e-8 to 3.4e-4 per bin), using the same trials as the Pd sweep.
 
 ## Status
 
@@ -146,7 +146,7 @@ A CA trial counts as detected when a reported peak lies within one bin of f0, wh
   | 4.96e-6 (derived) | 4.88e-6 | [3.99e-6, 5.93e-6] | 0.96% |
 
   The derived value holds the per-window target of 1%.
-- **3.2.3 Pd vs SNR: done 2026-11-02.** Per-window detector (clustering, parabolic frequency refinement, SNR estimate), Marcum Q1 bound averaged over scalloping, and the sweep. `tests/test_pd.cpp` checks Q1 against scipy, the bound against a known-noise Monte Carlo, clustering and interpolation, and that CA sits within 2 dB below the bound. At baseline, Pd = 0.9 needs **C/N0 = 13.5 dB-Hz** for CA-CFAR and 11.9 dB-Hz for the known-noise bound, a CFAR loss of 1.6 dB. Window false alarms in the sweep are 1.2% (24 of 2000). Write-up in `docs/pd-results.md`.
+- **3.2.3 Pd vs SNR: done 2026-11-02.** Per-window detector (clustering, parabolic frequency refinement, SNR estimate), Marcum Q1 bound averaged over scalloping, and the sweep. `tests/test_pd.cpp` checks Q1 against scipy, the bound against a known-noise Monte Carlo, clustering and interpolation, and that CA sits within 2 dB below the bound. At baseline, Pd = 0.9 needs **C/N0 = 13.5 dB-Hz** for CA-CFAR and 11.9 dB-Hz for the known-noise bound, a CFAR loss of 1.6 dB. Window false alarms in the sweep are 1.2% (24 of 2000). ROC at 12, 14 and 16 dB per-bin SNR: near Pd = 0.9, each decade of per-window Pfa costs about 1 dB of C/N0. Write-up in `docs/pd-results.md`.
 
 ## Repo layout
 
@@ -156,10 +156,11 @@ include/cfar/      spectrum.hpp cfar.hpp config.hpp detector.hpp
 include/cfar/sim/  signal.hpp noise.hpp config.hpp pfa.hpp theory.hpp pd.hpp
 src/, src/sim/     matching .cpp files
 apps/              sim_main.cpp (one window to CSV), pfa_check.cpp (Pfa check to CSV),
-                   pd_sweep.cpp (Pd vs SNR to CSV), run_file.cpp (AD3 captures, later)
+                   pd_sweep.cpp (Pd vs SNR to CSV), roc.cpp (ROC to CSV),
+                   run_file.cpp (AD3 captures, later)
 tests/             test_spectrum.cpp test_cfar.cpp test_pd.cpp
 configs/           baseline.toml
-scripts/           plot.py (spectrum, Pd vs SNR; ROC later)
+scripts/           plot.py (spectrum, Pd vs SNR, ROC)
 docs/              this file, pd-results.md (3.2.3 write-up), img/
 results/           CSV and PNG output, git-ignored
 ```
@@ -183,6 +184,7 @@ Dependencies: pocketfft and toml++ come in through CMake FetchContent (pinned); 
 | `[run]` | sim | `seed` |
 | `[pfa_check]` | sim | `windows`, `design_pfa` (list; the derived value is always added) |
 | `[pd_sweep]` | sim | `snr_bin_db_min`, `snr_bin_db_max`, `snr_bin_db_step` (bin-centred per-bin SNR), `trials`, `pd_target` |
+| `[roc]` | sim | `snr_bin_db` (list), `pfa_window` (list; per-bin values are derived), `trials` |
 
 The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interference]` and `source.kind = "vfd"` wait for the deferred work below.
 
@@ -192,7 +194,7 @@ The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interfere
 | pfa_check.csv | Config, design Pfa, cells, hits, measured Pfa, 95% interval, pass, per-window false-alarm rate |
 | pd_vs_snr.csv | Scenario, per-bin SNR, C/N0, trials, hits, Pd, 95% Wilson interval, ideal Pd, windows with a false alarm, config |
 | pd_vs_snr_summary.csv | Pd target, C/N0 for CA and for the bound at that Pd, CFAR loss |
-| roc.csv | SNR, Pfa, Pd |
+| roc.csv | Scenario, per-bin SNR, C/N0, Pfa per window and per bin, trials, hits, Pd, 95% Wilson interval, ideal Pd, windows with a false alarm, config |
 
 ## Deferred until real data (do not build now)
 

@@ -2,9 +2,10 @@
 
 Usage: python3 scripts/plot.py results/example_spectrum.csv [--band 10 1000] [-o out.png]
        python3 scripts/plot.py results/pd_vs_snr.csv [--pd-target 0.9] [-o out.png]
+       python3 scripts/plot.py results/roc.csv [-o out.png]
 
 The CSV's columns pick the plot: one window's P[k] with the CA-CFAR threshold
-and detections, or Pd vs C/N0 with the known-noise bound.
+and detections, Pd vs C/N0 with the known-noise bound, or ROC curves at fixed SNRs.
 """
 
 import argparse
@@ -20,6 +21,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 SURFACE = "#fcfcfb"
 SERIES = "#2a78d6"     # categorical slot 1
 THRESHOLD = "#eb6834"  # categorical slot 2
+SLOT_3 = "#1baf7a"     # categorical slot 3
 INK = "#0b0b0b"
 INK_2 = "#52514e"
 MUTED = "#898781"
@@ -151,6 +153,52 @@ def plot_pd(path, pd_target, out):
     print(f"wrote {out}")
 
 
+def plot_roc(path, out):
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    curves = {}
+    for r in rows:
+        curves.setdefault(float(r["snr_bin_db"]), []).append(r)
+    if len(curves) > 3:
+        raise SystemExit("plot_roc: at most 3 SNRs per plot")
+    trials = rows[0]["trials"]
+
+    fig, ax = plt.subplots(figsize=(9, 4.5), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+    ax.axvline(0.01, color=MUTED, lw=1.0, zorder=1)
+    ax.text(0.01, 0.02, " 1% per window\n (SUB-05.1 draft)", color=INK_2, fontsize=9,
+            transform=ax.get_xaxis_transform(), va="bottom")
+
+    for color, (snr, rs) in zip((SERIES, THRESHOLD, SLOT_3), sorted(curves.items())):
+        x = [float(r["pfa_window"]) for r in rs]
+        pd = [float(r["pd"]) for r in rs]
+        ideal = [float(r["pd_ideal"]) for r in rs]
+        cn0 = float(rs[0]["cn0_dbhz"])
+        ax.fill_between(x, [float(r["ci95_lo"]) for r in rs], [float(r["ci95_hi"]) for r in rs],
+                        color=color, alpha=0.18, lw=0, zorder=2)
+        ax.plot(x, ideal, color=color, lw=1.5, ls=(0, (4, 3)), zorder=2)
+        ax.plot(x, pd, color=color, lw=2.0, zorder=3,
+                label=f"C/N0 {cn0:.1f} dB-Hz (SNR_bin {snr:g} dB)")
+        ax.scatter(x, pd, s=64, color=color, edgecolors=SURFACE, linewidths=2, zorder=4)
+
+    ax.plot([], [], color=INK_2, lw=2.0, label=f"CA-CFAR, {trials} trials per point")
+    ax.plot([], [], color=INK_2, lw=1.5, ls=(0, (4, 3)), label="Known noise (ideal bound)")
+    ax.set_xscale("log")
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_xlabel("False-alarm probability per window (design)", color=INK_2)
+    ax.set_ylabel("Probability of detection", color=INK_2)
+    ax.set_title("ROC at fixed SNR, tone uniform over the band, white noise", color=INK,
+                 loc="left")
+    style_axes(ax)
+    legend = ax.legend(loc="lower right", frameon=False, fontsize=9)
+    for text in legend.get_texts():
+        text.set_color(INK_2)
+
+    fig.tight_layout()
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    print(f"wrote {out}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("csv", type=Path)
@@ -162,7 +210,9 @@ def main():
     out = args.out or args.csv.with_suffix(".png")
     with open(args.csv, newline="") as f:
         header = next(csv.reader(f))
-    if "pd" in header:
+    if "pfa_window" in header:
+        plot_roc(args.csv, out)
+    elif "pd" in header:
         plot_pd(args.csv, args.pd_target, out)
     else:
         plot_spectrum(args.csv, args.band, out)

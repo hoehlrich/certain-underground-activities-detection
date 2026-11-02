@@ -43,7 +43,7 @@ add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp src
 target_link_libraries(cfar_sim PUBLIC cfar PRIVATE tomlplusplus::tomlplusplus)
 target_compile_options(cfar_sim PRIVATE ${CFAR_WARNINGS})
 
-foreach(app sim_main pfa_check pd_sweep)
+foreach(app sim_main pfa_check pd_sweep roc)
   add_executable(${app} apps/${app}.cpp)
   target_link_libraries(${app} PRIVATE cfar_sim)
   target_compile_options(${app} PRIVATE ${CFAR_WARNINGS})

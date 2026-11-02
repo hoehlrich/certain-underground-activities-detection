@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cfar/cfar.hpp"
 #include "cfar/config.hpp"
 #include "cfar/detector.hpp"
 #include "cfar/sim/config.hpp"
@@ -160,4 +161,26 @@ TEST(PdSweep, CaSitsJustBelowIdealBound) {
         EXPECT_GT(ci.hi, ideal.pd(p.snr_bin_db - 2.0)) << "SNR " << p.snr_bin_db;
         EXPECT_LT(p.fa_windows, 30u) << "SNR " << p.snr_bin_db;  // about 1% of 1000 expected
     }
+}
+
+TEST(Roc, PdRisesWithPfaAndStaysBelowBound) {
+    const auto cfg = cfar::sim::load_config(CFAR_SOURCE_DIR "/configs/baseline.toml");
+    ASSERT_FALSE(cfg.roc_snr_bin_db.empty());
+    const std::size_t n_bins = cfar::band_bins(cfg.proc).size();
+    std::vector<double> pfa_bins;
+    for (double p : {1e-3, 1e-2, 1e-1}) {
+        pfa_bins.push_back(cfar::pfa_bin_for_window(p, n_bins));
+    }
+    const std::vector<double> snr{14.0};
+    const auto points = cfar::sim::run_pd_grid(cfg, snr, pfa_bins, 400);
+    ASSERT_EQ(points.size(), 3u);
+    for (std::size_t j = 0; j < points.size(); ++j) {
+        EXPECT_NEAR(points[j].pfa_bin, pfa_bins[j], 0.0);
+        EXPECT_LT(points[j].interval().lo, points[j].ideal_pd);
+        if (j > 0) {
+            EXPECT_GE(points[j].hits, points[j - 1].hits);
+            EXPECT_GT(points[j].ideal_pd, points[j - 1].ideal_pd);
+        }
+    }
+    EXPECT_NEAR(points[1].pfa_window, 0.01, 1e-12);
 }

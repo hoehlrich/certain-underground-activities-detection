@@ -29,15 +29,17 @@ double snr_bin_offset_db(const ProcessingConfig& proc) {
     return 10.0 * std::log10(t) - 10.0 * std::log10(enbw);
 }
 
-IdealBound ideal_bound(const SimConfig& cfg) {
+IdealBound ideal_bound(const SimConfig& cfg, double pfa_bin) {
     const auto& proc = cfg.proc;
     std::vector<double> offsets = uniform_offsets();
     if (cfg.f0_hz) {
         const double bins = *cfg.f0_hz / bin_hz(proc.nfft, proc.fs_hz);
         offsets = {bins - std::round(bins)};
     }
-    return {make_window(proc.window, proc.nfft), design_pfa_bin(proc), offsets};
+    return {make_window(proc.window, proc.nfft), pfa_bin, offsets};
 }
+
+IdealBound ideal_bound(const SimConfig& cfg) { return ideal_bound(cfg, design_pfa_bin(cfg.proc)); }
 
 std::vector<double> pd_snr_grid(const SimConfig& cfg) {
     std::vector<double> grid;
@@ -48,21 +50,34 @@ std::vector<double> pd_snr_grid(const SimConfig& cfg) {
     return grid;
 }
 
-std::vector<PdPoint> run_pd_sweep(const SimConfig& cfg, std::span<const double> snr_bin_db,
-                                  std::size_t trials) {
+std::vector<PdPoint> run_pd_grid(const SimConfig& cfg, std::span<const double> snr_bin_db,
+                                 std::span<const double> pfa_bins, std::size_t trials) {
     const auto& proc = cfg.proc;
-    const Detector detector(proc);
-    const double df = detector.bin_hz();
+    const double df = bin_hz(proc.nfft, proc.fs_hz);
     const double offset_db = snr_bin_offset_db(proc);
+    const std::size_t n_bins = band_bins(proc).size();
 
-    const IdealBound ideal = ideal_bound(cfg);
+    // One detector and one bound per false-alarm setting.
+    std::vector<Detector> detectors;
+    std::vector<IdealBound> bounds;
+    for (double pfa : pfa_bins) {
+        ProcessingConfig p = proc;
+        p.pfa_bin = pfa;
+        detectors.emplace_back(p);
+        bounds.push_back(ideal_bound(cfg, pfa));
+    }
+    const auto& window = detectors.front().window();
 
     std::vector<PdPoint> points;
     std::vector<double> amplitudes;
     for (double s : snr_bin_db) {
         const double cn0 = s - offset_db;
-        points.push_back({s, cn0, trials, 0, 0, ideal.pd(s)});
         amplitudes.push_back(amplitude_for_cn0(cn0, cfg.noise_sigma, proc.fs_hz));
+        for (std::size_t j = 0; j < pfa_bins.size(); ++j) {
+            const double pfa_window =
+                -std::expm1(static_cast<double>(n_bins) * std::log1p(-pfa_bins[j]));
+            points.push_back({s, cn0, pfa_bins[j], pfa_window, trials, 0, 0, bounds[j].pd(s)});
+        }
     }
 
     std::vector<double> noise(proc.nfft);
@@ -79,20 +94,30 @@ std::vector<PdPoint> run_pd_sweep(const SimConfig& cfg, std::span<const double> 
         std::fill(unit_tone.begin(), unit_tone.end(), 0.0);
         add_tone(unit_tone, proc.fs_hz, tone);
 
-        for (std::size_t i = 0; i < points.size(); ++i) {
+        for (std::size_t i = 0; i < amplitudes.size(); ++i) {
             for (std::size_t k = 0; k < x.size(); ++k) {
                 x[k] = noise[k] + amplitudes[i] * unit_tone[k];
             }
-            bool hit = false;
-            bool fa = false;
-            for (const auto& d : detector.process(x)) {
-                (std::abs(d.freq_hz - tone.freq_hz) <= df ? hit : fa) = true;
+            const auto power = periodogram(x, window);
+            for (std::size_t j = 0; j < detectors.size(); ++j) {
+                bool hit = false;
+                bool fa = false;
+                for (const auto& d : detectors[j].detect(power)) {
+                    (std::abs(d.freq_hz - tone.freq_hz) <= df ? hit : fa) = true;
+                }
+                auto& pt = points[i * detectors.size() + j];
+                pt.hits += hit ? 1 : 0;
+                pt.fa_windows += fa ? 1 : 0;
             }
-            points[i].hits += hit ? 1 : 0;
-            points[i].fa_windows += fa ? 1 : 0;
         }
     }
     return points;
+}
+
+std::vector<PdPoint> run_pd_sweep(const SimConfig& cfg, std::span<const double> snr_bin_db,
+                                  std::size_t trials) {
+    const double pfa = design_pfa_bin(cfg.proc);
+    return run_pd_grid(cfg, snr_bin_db, std::span(&pfa, 1), trials);
 }
 
 double crossing_snr_bin_db(std::span<const PdPoint> points, double target) {

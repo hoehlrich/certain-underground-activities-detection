@@ -1,10 +1,35 @@
 #include "cfar/sim/config.hpp"
 
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 #include <toml++/toml.hpp>
 
 namespace cfar::sim {
+
+namespace {
+
+// Replaces out with the array at node, if present. Integers count as numbers.
+void read_numbers(toml::node_view<toml::node> node, const char* key, std::vector<double>& out) {
+    if (!node) {
+        return;
+    }
+    const auto* arr = node.as_array();
+    if (arr == nullptr) {
+        throw std::runtime_error(std::string("config: ") + key + " must be an array");
+    }
+    out.clear();
+    for (const auto& v : *arr) {
+        const auto x = v.value<double>();
+        if (!x) {
+            throw std::runtime_error(std::string("config: ") + key + " must hold numbers");
+        }
+        out.push_back(*x);
+    }
+}
+
+}  // namespace
 
 SimConfig load_config(const std::filesystem::path& path) {
     SimConfig cfg;
@@ -36,16 +61,10 @@ SimConfig load_config(const std::filesystem::path& path) {
         throw std::runtime_error("config: source.f0_hz must be \"uniform\" or a number");
     }
 
-    if (const auto* design = tbl["pfa_check"]["design_pfa"].as_array()) {
-        cfg.pfa_check_design.clear();
-        for (const auto& v : *design) {
-            const auto p = v.value<double>();
-            if (!p) {
-                throw std::runtime_error("config: pfa_check.design_pfa must hold numbers");
-            }
-            cfg.pfa_check_design.push_back(*p);
-        }
-    }
+    read_numbers(tbl["pfa_check"]["design_pfa"], "pfa_check.design_pfa", cfg.pfa_check_design);
+    read_numbers(tbl["roc"]["snr_bin_db"], "roc.snr_bin_db", cfg.roc_snr_bin_db);
+    read_numbers(tbl["roc"]["pfa_window"], "roc.pfa_window", cfg.roc_pfa_window);
+    cfg.roc_trials = tbl["roc"]["trials"].value_or(cfg.roc_trials);
 
     validate(cfg);
     return cfg;
@@ -73,6 +92,14 @@ void validate(const SimConfig& cfg) {
     }
     if (!(0.0 < cfg.pd_target && cfg.pd_target < 1.0)) {
         throw std::runtime_error("config: pd_sweep.pd_target must be in (0, 1)");
+    }
+    if (cfg.roc_snr_bin_db.empty() || cfg.roc_pfa_window.empty() || cfg.roc_trials == 0) {
+        throw std::runtime_error("config: roc needs SNRs, Pfa values and at least 1 trial");
+    }
+    for (double p : cfg.roc_pfa_window) {
+        if (!(0.0 < p && p < 1.0)) {
+            throw std::runtime_error("config: roc.pfa_window values must be in (0, 1)");
+        }
     }
     for (double p : cfg.pfa_check_design) {
         if (!(0.0 < p && p < 1.0)) {

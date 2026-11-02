@@ -44,6 +44,31 @@ Most of the loss comes from the threshold. With 32 correlated training bins, the
 
 False alarms are 24 of 2000 windows (1.2%) at every SNR, inside the 95% interval [0.8%, 1.8%] for the 1% design. The count is the same at every SNR because every SNR uses the same noise.
 
+## ROC at fixed SNR
+
+The ROC uses the same trials at three fixed SNRs near the knee of the curve. It sweeps the false-alarm target from 1e-4 to 0.5 per window (5e-8 to 3.4e-4 per bin). At 1% per window it reproduces the Pd curve above exactly.
+
+![ROC](img/roc.png)
+
+| Pfa per window | Pd at C/N0 10.6 dB-Hz | 12.6 dB-Hz | 14.6 dB-Hz |
+| --- | --- | --- | --- |
+| 1e-4 | 0.081 | 0.353 | 0.799 |
+| 1e-3 | 0.191 | 0.561 | 0.921 |
+| 1e-2 | 0.375 | 0.774 | 0.976 |
+| 1e-1 | 0.620 | 0.925 | 0.996 |
+
+Near Pd = 0.9, each factor of 10 in the false-alarm target is worth about 1 dB of C/N0. These values come from a separate run on a 0.25 dB grid:
+
+| Pfa per window | C/N0 for Pd = 0.9 |
+| --- | --- |
+| 10% | 12.4 dB-Hz |
+| 1% | 13.5 dB-Hz |
+| 0.1% | 14.5 dB-Hz |
+
+SUB-05.1 is still a draft, so this is the trade to discuss with NNSS.
+
+The x axis is the design value, 1 - (1 - Pfa_bin)^2028. Neighbouring bins are correlated, so fewer windows actually raise a false alarm than this predicts at the high end. At a design value of 0.5, the measured rate was 44% (878 of 2000); at 0.1 it was 8.8%. The per-bin Pfa below 5e-6 relies on the exact alpha formula. The Pfa check only tested down to 5e-6. Measuring 5e-8 per bin would take about 1e6 noise windows.
+
 ## What it means for the sensor
 
 C/N0 is the tone power over the noise power spectral density at the sensor. For a received tone of rms field B_rms, the sensor's noise floor (one-sided, per root hertz) must satisfy
@@ -65,4 +90,6 @@ For example, a 1 pT rms tone at the rod needs a combined rod, amplifier and AD3 
 ```
 ./build/pd_sweep configs/baseline.toml      # results/pd_vs_snr.csv and pd_vs_snr_summary.csv
 python3 scripts/plot.py results/pd_vs_snr.csv
+./build/roc configs/baseline.toml           # results/roc.csv
+python3 scripts/plot.py results/roc.csv
 ```
