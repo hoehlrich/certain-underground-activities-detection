@@ -12,7 +12,7 @@
 namespace cfar::sim {
 
 // Simulation config: the processing sections plus [noise], [source], [run] and
-// [pfa_check]. Defaults match docs/cfar-sim-plan.md; none are confirmed by the sponsor.
+// [pfa_check] and [pd_sweep]. Defaults match docs/cfar-sim-plan.md; none are confirmed by the sponsor.
 struct SimConfig {
     ProcessingConfig proc;
     // [noise]
@@ -26,6 +26,12 @@ struct SimConfig {
     // [pfa_check] design values checked besides the derived baseline
     std::size_t pfa_check_windows = 10000;
     std::vector<double> pfa_check_design = {1e-3, 1e-4, 1e-5};
+    // [pd_sweep] grid of bin-centred per-bin SNR, trials per point, Pd to report
+    double pd_snr_min_db = 0.0;
+    double pd_snr_max_db = 25.0;
+    double pd_snr_step_db = 1.0;
+    std::size_t pd_trials = 2000;
+    double pd_target = 0.9;
 };
 
 // Throws std::runtime_error on a parse error, a bad value or a SUB-03.2 violation.

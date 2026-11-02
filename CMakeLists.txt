@@ -30,19 +30,20 @@ find_package(Threads REQUIRED) # pocketfft uses std::thread for its plan cache
 
 set(CFAR_WARNINGS -Wall -Wextra -Wpedantic)
 
-# Detector library (deliverable D-09): spectrum, CA-CFAR, processing config.
+# Detector library (deliverable D-09): spectrum, CA-CFAR, detector, processing config.
 # Must not depend on cfar_sim.
-add_library(cfar src/spectrum.cpp src/cfar.cpp src/config.cpp)
+add_library(cfar src/spectrum.cpp src/cfar.cpp src/config.cpp src/detector.cpp)
 target_include_directories(cfar PUBLIC include)
 target_link_libraries(cfar PRIVATE pocketfft Threads::Threads tomlplusplus::tomlplusplus)
 target_compile_options(cfar PRIVATE ${CFAR_WARNINGS})
 
-# Simulation code: signal and noise models, sim config, Pfa Monte Carlo.
-add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp src/sim/pfa.cpp)
+# Simulation code: signal and noise models, sim config, Pfa and Pd Monte Carlo, theory.
+add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp src/sim/pfa.cpp
+  src/sim/theory.cpp src/sim/pd.cpp)
 target_link_libraries(cfar_sim PUBLIC cfar PRIVATE tomlplusplus::tomlplusplus)
 target_compile_options(cfar_sim PRIVATE ${CFAR_WARNINGS})
 
-foreach(app sim_main pfa_check)
+foreach(app sim_main pfa_check pd_sweep)
   add_executable(${app} apps/${app}.cpp)
   target_link_libraries(${app} PRIVATE cfar_sim)
   target_compile_options(${app} PRIVATE ${CFAR_WARNINGS})
@@ -51,7 +52,7 @@ endforeach()
 enable_testing()
 find_package(GTest REQUIRED)
 include(GoogleTest)
-foreach(test test_spectrum test_cfar)
+foreach(test test_spectrum test_cfar test_pd)
   add_executable(${test} tests/${test}.cpp)
   target_link_libraries(${test} PRIVATE cfar_sim GTest::gtest_main)
   target_compile_options(${test} PRIVATE ${CFAR_WARNINGS})

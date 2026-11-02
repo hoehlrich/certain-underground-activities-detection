@@ -20,21 +20,24 @@ ctest --test-dir build --output-on-failure
 ./build/sim_main configs/baseline.toml          # writes results/example_spectrum.csv
 python3 scripts/plot.py results/example_spectrum.csv   # writes results/example_spectrum.png
 ./build/pfa_check configs/baseline.toml         # writes results/pfa_check.csv
+./build/pd_sweep configs/baseline.toml          # writes results/pd_vs_snr.csv (about 4 s)
+python3 scripts/plot.py results/pd_vs_snr.csv   # writes results/pd_vs_snr.png
 ```
 
-`sim_main` runs one window of a tone in white noise through CA-CFAR and reports which bins crossed the threshold. `pfa_check` runs noise-only windows and compares the measured false-alarm rate with the design value; it exits non-zero if any design value fails. Parameters are in `configs/baseline.toml`; none are confirmed by the sponsor yet.
+`sim_main` runs one window of a tone in white noise through the detector and lists the detections. `pfa_check` runs noise-only windows and compares the measured false-alarm rate with the design value; it exits non-zero if any design value fails. `pd_sweep` measures probability of detection against SNR, compares it with the known-noise bound, and prints the C/N0 needed for Pd = 0.9. Parameters are in `configs/baseline.toml`; none are confirmed by the sponsor yet.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `include/cfar/`, `src/` | Detector library (target `cfar`): spectrum, CA-CFAR, processing config. No dependency on the simulation code. |
-| `include/cfar/sim/`, `src/sim/` | Signal, noise, simulation config, Pfa Monte Carlo (target `cfar_sim`). |
-| `apps/` | `sim_main`, `pfa_check` |
+| `include/cfar/`, `src/` | Detector library (target `cfar`): spectrum, CA-CFAR, per-window detector, processing config. No dependency on the simulation code. |
+| `include/cfar/sim/`, `src/sim/` | Signal, noise, simulation config, Pfa and Pd Monte Carlo, detection theory (target `cfar_sim`). |
+| `apps/` | `sim_main`, `pfa_check`, `pd_sweep` |
 | `tests/` | GoogleTest suite |
 | `configs/` | TOML configs |
 | `scripts/` | Plotting |
 | `docs/cfar-sim-plan.md` | Signal model, parameters, CFAR math, validation plan |
+| `docs/pd-results.md` | Pd vs SNR results and the C/N0 needed for Pd = 0.9 |
 
 ## Status
 
@@ -42,4 +45,4 @@ python3 scripts/plot.py results/example_spectrum.csv   # writes results/example_
 | --- | --- |
 | 3.2.1 Tone, white noise, Hann periodogram | Done |
 | 3.2.2 CA-CFAR and Pfa check | Done |
-| 3.2.3 Pd vs SNR | Next |
+| 3.2.3 Pd vs SNR | Done: Pd = 0.9 at C/N0 = 13.5 dB-Hz in white noise ([results](docs/pd-results.md)) |

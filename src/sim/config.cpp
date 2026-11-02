@@ -22,6 +22,11 @@ SimConfig load_config(const std::filesystem::path& path) {
     cfg.cn0_dbhz = tbl["source"]["cn0_dbhz"].value_or(cfg.cn0_dbhz);
     cfg.seed = tbl["run"]["seed"].value_or(cfg.seed);
     cfg.pfa_check_windows = tbl["pfa_check"]["windows"].value_or(cfg.pfa_check_windows);
+    cfg.pd_snr_min_db = tbl["pd_sweep"]["snr_bin_db_min"].value_or(cfg.pd_snr_min_db);
+    cfg.pd_snr_max_db = tbl["pd_sweep"]["snr_bin_db_max"].value_or(cfg.pd_snr_max_db);
+    cfg.pd_snr_step_db = tbl["pd_sweep"]["snr_bin_db_step"].value_or(cfg.pd_snr_step_db);
+    cfg.pd_trials = tbl["pd_sweep"]["trials"].value_or(cfg.pd_trials);
+    cfg.pd_target = tbl["pd_sweep"]["pd_target"].value_or(cfg.pd_target);
 
     // f0_hz is either "uniform" or a fixed frequency.
     const auto f0 = tbl["source"]["f0_hz"];
@@ -59,6 +64,15 @@ void validate(const SimConfig& cfg) {
     }
     if (cfg.pfa_check_windows == 0) {
         throw std::runtime_error("config: pfa_check.windows must be at least 1");
+    }
+    if (!(cfg.pd_snr_step_db > 0.0) || cfg.pd_snr_max_db < cfg.pd_snr_min_db) {
+        throw std::runtime_error("config: pd_sweep needs step > 0 and max >= min");
+    }
+    if (cfg.pd_trials == 0) {
+        throw std::runtime_error("config: pd_sweep.trials must be at least 1");
+    }
+    if (!(0.0 < cfg.pd_target && cfg.pd_target < 1.0)) {
+        throw std::runtime_error("config: pd_sweep.pd_target must be in (0, 1)");
     }
     for (double p : cfg.pfa_check_design) {
         if (!(0.0 < p && p < 1.0)) {

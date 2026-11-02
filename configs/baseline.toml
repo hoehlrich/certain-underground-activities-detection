@@ -35,3 +35,10 @@ seed = 1                  # SYS-09: per-trial RNG is seeded from (seed, trial)
 [pfa_check]
 windows = 10000           # about 2e7 bin trials at 2028 bins per window
 design_pfa = [1e-3, 1e-4, 1e-5]   # the derived per-bin value is always checked too
+
+[pd_sweep]
+snr_bin_db_min = 0.0      # bin-centred per-bin SNR; C/N0 = SNR_bin - 1.35 dB at this window
+snr_bin_db_max = 25.0
+snr_bin_db_step = 1.0
+trials = 2000             # TP-10 asks for at least 1000 per SNR
+pd_target = 0.9           # SUB-05.1 draft; the sweep reports the C/N0 that reaches it

@@ -1,4 +1,4 @@
-// One window of tone plus white noise through CA-CFAR, written as a spectrum CSV.
+// One window of tone plus white noise through the detector, written as a spectrum CSV.
 //
 // Usage: sim_main [config.toml] [output.csv]
 
@@ -13,6 +13,7 @@
 
 #include "cfar/cfar.hpp"
 #include "cfar/config.hpp"
+#include "cfar/detector.hpp"
 #include "cfar/sim/config.hpp"
 #include "cfar/sim/noise.hpp"
 #include "cfar/sim/signal.hpp"
@@ -37,11 +38,15 @@ int main(int argc, char** argv) {
         cfar::sim::add_tone(x, proc.fs_hz, tone);
         cfar::sim::add_white_noise(x, cfg.noise_sigma, rng);
 
-        const auto window = cfar::make_window(proc.window, proc.nfft);
-        const auto power = cfar::periodogram(x, window);
-        const double df = cfar::bin_hz(proc.nfft, proc.fs_hz);
-        const cfar::CaCfar ca(cfar::ca_params(proc), window);
-        const auto threshold = ca.threshold(power, cfar::band_bins(proc));
+        const cfar::Detector det(proc);
+        const auto power = cfar::periodogram(x, det.window());
+        const double df = det.bin_hz();
+        const cfar::CaCfar& ca = det.cfar();
+        const auto noise = cfar::ca_noise(power, det.band(), proc.guard_per_side,
+                                          proc.train_per_side);
+        const auto threshold = ca.threshold(noise);
+        const auto detections =
+            cfar::find_detections(power, threshold, noise.level, det.band(), df);
 
         if (out_path.has_parent_path()) {
             std::filesystem::create_directories(out_path.parent_path());
@@ -67,9 +72,16 @@ int main(int argc, char** argv) {
                   << "design Pfa per bin " << ca.params().pfa_bin << ", alpha "
                   << ca.alpha(cfar::Sides::both) << " (two-sided), "
                   << ca.alpha(cfar::Sides::lead_only) << " (one-sided)\n"
-                  << hits << " bins over threshold; tone bin "
-                  << (power[tone_bin] > threshold[tone_bin] ? "detected" : "missed") << '\n'
-                  << "wrote " << out_path.string() << '\n';
+                  << hits << " bins over threshold in " << detections.size()
+                  << " detection(s):\n";
+        for (const auto& d : detections) {
+            std::cout << "  " << d.freq_hz << " Hz (bins " << d.first_bin << '-' << d.last_bin
+                      << "), statistic " << 10.0 * std::log10(d.statistic) << " dB, SNR est "
+                      << 10.0 * std::log10(d.snr_est) << " dB"
+                      << (std::abs(d.freq_hz - tone.freq_hz) <= df ? ", the tone" : ", false alarm")
+                      << '\n';
+        }
+        std::cout << "wrote " << out_path.string() << '\n';
     } catch (const std::exception& e) {
         std::cerr << "sim_main: " << e.what() << '\n';
         return 1;

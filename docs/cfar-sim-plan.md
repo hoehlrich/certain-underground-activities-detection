@@ -107,7 +107,7 @@ where C_side is the Toeplitz matrix of rho over one side's cells (the two sides 
 - Training cells stay inside the search band. A bin within G + N/2 of a band edge uses the side that fits, with alpha recomputed for N/2 cells (24.85 at baseline).
 - The formula assumes circular complex Gaussian bins, which holds away from DC and Nyquist. The band stays clear of both.
 
-Detector logic per window:
+Detector logic per window (`cfar::Detector` in `detector.hpp`):
 
 1. Threshold every bin in the search band.
 2. Cluster adjacent hits and keep each cluster's peak bin.
@@ -123,12 +123,14 @@ The known-noise detector for a steady tone, which every CFAR curve is compared a
 Pd = Q1( sqrt(2 * SNR_bin), sqrt(-2 ln Pfa) )
 ```
 
-Q1 is the Marcum Q-function of order 1 (SNR_bin linear, not dB). The horizontal gap between this curve and the CA curve at Pd = 0.9 is the CFAR loss.
+Q1 is the Marcum Q-function of order 1 (SNR_bin linear, not dB). With f0 uniform over the band, the sim averages this over tone offsets from the bin centre, applying each offset's scalloping loss, so the bound and the CA trials see the same signals. The horizontal gap between this curve and the CA curve at Pd = 0.9 is the CFAR loss.
+
+A CA trial counts as detected when a reported peak lies within one bin of f0, while the bound tests only the nearest bin. This favours CA slightly, so the measured loss is if anything a little low.
 
 ## Validation
 
 1. **Pfa check:** noise only, at least 1e7 bin trials per config (about 1e4 windows). Pass when measured Pfa falls inside the 95% binomial interval of the design value, for design Pfa of 1e-3, 1e-4 and 1e-5, plus the derived baseline 5e-6. The interval uses the normal approximation, and the expected count is at least 100 hits at the lowest design value. Adjacent test cells are correlated, but a false alarm rarely spills into the next bin, so the binomial interval is close.
-2. **Pd vs SNR:** per-bin SNR from 0 to 25 dB in 1 dB steps, 2000 trials each, ideal curve overlaid. Report the C/N0 needed for Pd = 0.9.
+2. **Pd vs SNR:** per-bin SNR (bin-centred) from 0 to 25 dB in 1 dB steps, 2000 trials each, ideal curve overlaid. Report the C/N0 needed for Pd = 0.9. Each trial reuses its noise, f0 and phase at every SNR, so the curve is smooth.
 3. **ROC (optional):** at three SNRs near the knee of the Pd curve, sweep Pfa from 1e-6 to 1e-1.
 
 ## Status
@@ -144,25 +146,25 @@ Q1 is the Marcum Q-function of order 1 (SNR_bin linear, not dB). The horizontal 
   | 4.96e-6 (derived) | 4.88e-6 | [3.99e-6, 5.93e-6] | 0.96% |
 
   The derived value holds the per-window target of 1%.
-- **3.2.3 Pd vs SNR:** next. Needs the per-window detector logic above (clustering adjacent hits, which a tone always produces in its Hann main lobe).
+- **3.2.3 Pd vs SNR: done 2026-11-02.** Per-window detector (clustering, parabolic frequency refinement, SNR estimate), Marcum Q1 bound averaged over scalloping, and the sweep. `tests/test_pd.cpp` checks Q1 against scipy, the bound against a known-noise Monte Carlo, clustering and interpolation, and that CA sits within 2 dB below the bound. At baseline, Pd = 0.9 needs **C/N0 = 13.5 dB-Hz** for CA-CFAR and 11.9 dB-Hz for the known-noise bound, a CFAR loss of 1.6 dB. Window false alarms in the sweep are 1.2% (24 of 2000). Write-up in `docs/pd-results.md`.
 
 ## Repo layout
 
 ```
 CMakeLists.txt     targets: cfar (detector library), cfar_sim (simulation), apps, tests
-include/cfar/      spectrum.hpp cfar.hpp config.hpp; later detector.hpp
-include/cfar/sim/  signal.hpp noise.hpp config.hpp pfa.hpp
+include/cfar/      spectrum.hpp cfar.hpp config.hpp detector.hpp
+include/cfar/sim/  signal.hpp noise.hpp config.hpp pfa.hpp theory.hpp pd.hpp
 src/, src/sim/     matching .cpp files
 apps/              sim_main.cpp (one window to CSV), pfa_check.cpp (Pfa check to CSV),
-                   run_file.cpp (AD3 captures, later)
-tests/             test_spectrum.cpp test_cfar.cpp
+                   pd_sweep.cpp (Pd vs SNR to CSV), run_file.cpp (AD3 captures, later)
+tests/             test_spectrum.cpp test_cfar.cpp test_pd.cpp
 configs/           baseline.toml
-scripts/           plot.py (spectrum now; Pd vs SNR and ROC later)
-docs/              this file
+scripts/           plot.py (spectrum, Pd vs SNR; ROC later)
+docs/              this file, pd-results.md (3.2.3 write-up), img/
 results/           CSV and PNG output, git-ignored
 ```
 
-`cfar` must not depend on `cfar_sim`; it becomes the delivered pipeline for real AD3 data (D-09). In `cfar.hpp`, `ca_noise` maps P[k] and the band to a `NoiseEstimate` (level and sides used per bin). OS, GO and SO estimators can be added later behind the same signature, each with its own alpha.
+`cfar` must not depend on `cfar_sim`; it becomes the delivered pipeline for real AD3 data (D-09). `cfar::Detector` is built from `ProcessingConfig` alone and turns nfft samples into a list of detections (SYS-05 outputs). In `cfar.hpp`, `ca_noise` maps P[k] and the band to a `NoiseEstimate` (level and sides used per bin). OS, GO and SO estimators can be added later behind the same signature, each with its own alpha.
 
 Dependencies: pocketfft and toml++ come in through CMake FetchContent (pinned); GoogleTest is the system package.
 
@@ -180,6 +182,7 @@ Dependencies: pocketfft and toml++ come in through CMake FetchContent (pinned); 
 | `[source]` | sim | `kind` (`"tone"` only), `f0_hz` (`"uniform"` or a value in Hz), `cn0_dbhz` |
 | `[run]` | sim | `seed` |
 | `[pfa_check]` | sim | `windows`, `design_pfa` (list; the derived value is always added) |
+| `[pd_sweep]` | sim | `snr_bin_db_min`, `snr_bin_db_max`, `snr_bin_db_step` (bin-centred per-bin SNR), `trials`, `pd_target` |
 
 The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interference]` and `source.kind = "vfd"` wait for the deferred work below.
 
@@ -187,7 +190,8 @@ The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interfere
 | --- | --- |
 | example_spectrum.csv | One window's P[k], CA threshold and per-bin detections, for a slide |
 | pfa_check.csv | Config, design Pfa, cells, hits, measured Pfa, 95% interval, pass, per-window false-alarm rate |
-| pd_vs_snr.csv | Scenario, SNR, Pd, trials |
+| pd_vs_snr.csv | Scenario, per-bin SNR, C/N0, trials, hits, Pd, 95% Wilson interval, ideal Pd, windows with a false alarm, config |
+| pd_vs_snr_summary.csv | Pd target, C/N0 for CA and for the bound at that Pd, CFAR loss |
 | roc.csv | SNR, Pfa, Pd |
 
 ## Deferred until real data (do not build now)
