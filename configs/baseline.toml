@@ -1,5 +1,8 @@
-# Baseline simulation config (Oct 29 scope). Defaults from docs/cfar-sim-plan.md.
+# Baseline config (Oct 29 scope). Defaults from docs/cfar-sim-plan.md.
 # None of these values are confirmed by the sponsor.
+#
+# [band], [acq], [false_alarm] and [cfar] are processing settings, read by the
+# detector library. The remaining sections are simulation-only.
 
 [band]
 f_lo_hz = 10.0            # SYS-01 search band, TBD with NNSS
@@ -9,6 +12,14 @@ f_hi_hz = 1000.0          # VFD source ceiling; was 500.0
 fs_hz = 4000.0            # after decimation; SUB-03.2 needs >= 2.5 x f_hi_hz
 nfft = 8192               # 2.05 s window, 0.49 Hz bins, 2028 in band
 window = "hann"           # ENBW 1.5 bins
+
+[false_alarm]
+pfa_window = 0.01         # SUB-05.1 draft
+pfa_bin = "derived"       # 1 - (1 - pfa_window)^(1/n_bins) = 4.96e-6 here; or a number
+
+[cfar]
+guard_per_side = 2        # >= 2 for Hann, so the test cell is independent of training cells
+train_per_side = 16       # 16 per side covers +/-8 Hz at 0.49 Hz bins
 
 [noise]
 sigma = 1.0               # white Gaussian, per-sample standard deviation
@@ -20,3 +31,7 @@ cn0_dbhz = 30.0           # tone power over noise density
 
 [run]
 seed = 1                  # SYS-09: per-trial RNG is seeded from (seed, trial)
+
+[pfa_check]
+windows = 10000           # about 2e7 bin trials at 2028 bins per window
+design_pfa = [1e-3, 1e-4, 1e-5]   # the derived per-bin value is always checked too

@@ -5,6 +5,7 @@
 #include <numbers>
 #include <numeric>
 #include <stdexcept>
+#include <string>
 
 #include "pocketfft_hdronly.h"
 
@@ -17,6 +18,23 @@ std::vector<double> hann_window(std::size_t n) {
                                     static_cast<double>(n));
     }
     return w;
+}
+
+std::vector<double> make_window(std::string_view name, std::size_t n) {
+    if (name == "hann") {
+        return hann_window(n);
+    }
+    throw std::invalid_argument("unknown window \"" + std::string(name) + "\"");
+}
+
+BinRange band_bins(double f_lo_hz, double f_hi_hz, std::size_t n, double fs) {
+    const double scale = static_cast<double>(n) / fs;
+    const double first = std::ceil(f_lo_hz * scale);
+    const double last = std::floor(f_hi_hz * scale);
+    if (first < 0.0 || last > static_cast<double>(n / 2) || first > last) {
+        throw std::invalid_argument("band_bins: band must hold at least one bin below Nyquist");
+    }
+    return {static_cast<std::size_t>(first), static_cast<std::size_t>(last)};
 }
 
 double enbw_bins(std::span<const double> window) {

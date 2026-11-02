@@ -5,19 +5,16 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
+
+#include "cfar/config.hpp"
 
 namespace cfar::sim {
 
-// Simulation parameters, loaded from TOML (configs/baseline.toml). Defaults
-// match docs/cfar-sim-plan.md; none are confirmed by the sponsor.
+// Simulation config: the processing sections plus [noise], [source], [run] and
+// [pfa_check]. Defaults match docs/cfar-sim-plan.md; none are confirmed by the sponsor.
 struct SimConfig {
-    // [band] SYS-01 search band, TBD
-    double f_lo_hz = 10.0;
-    double f_hi_hz = 1000.0;
-    // [acq]
-    double fs_hz = 4000.0;  // SUB-03.2: at least 2.5 x f_hi_hz
-    std::size_t nfft = 8192;
-    std::string window = "hann";
+    ProcessingConfig proc;
     // [noise]
     double noise_sigma = 1.0;
     // [source]
@@ -26,12 +23,15 @@ struct SimConfig {
     double cn0_dbhz = 30.0;
     // [run]
     std::uint64_t seed = 1;
+    // [pfa_check] design values checked besides the derived baseline
+    std::size_t pfa_check_windows = 10000;
+    std::vector<double> pfa_check_design = {1e-3, 1e-4, 1e-5};
 };
 
 // Throws std::runtime_error on a parse error, a bad value or a SUB-03.2 violation.
 SimConfig load_config(const std::filesystem::path& path);
 
-// Checks the values in cfg; load_config calls this.
+// Checks the values in cfg, including cfg.proc; load_config calls this.
 void validate(const SimConfig& cfg);
 
 }  // namespace cfar::sim

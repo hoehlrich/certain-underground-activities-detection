@@ -30,26 +30,31 @@ find_package(Threads REQUIRED) # pocketfft uses std::thread for its plan cache
 
 set(CFAR_WARNINGS -Wall -Wextra -Wpedantic)
 
-# Detector library (deliverable D-09). Must not depend on cfar_sim.
-add_library(cfar src/spectrum.cpp)
+# Detector library (deliverable D-09): spectrum, CA-CFAR, processing config.
+# Must not depend on cfar_sim.
+add_library(cfar src/spectrum.cpp src/cfar.cpp src/config.cpp)
 target_include_directories(cfar PUBLIC include)
-target_link_libraries(cfar PRIVATE pocketfft Threads::Threads)
+target_link_libraries(cfar PRIVATE pocketfft Threads::Threads tomlplusplus::tomlplusplus)
 target_compile_options(cfar PRIVATE ${CFAR_WARNINGS})
 
-# Simulation code: signal and noise models, TOML config.
-add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp)
+# Simulation code: signal and noise models, sim config, Pfa Monte Carlo.
+add_library(cfar_sim src/sim/signal.cpp src/sim/noise.cpp src/sim/config.cpp src/sim/pfa.cpp)
 target_link_libraries(cfar_sim PUBLIC cfar PRIVATE tomlplusplus::tomlplusplus)
 target_compile_options(cfar_sim PRIVATE ${CFAR_WARNINGS})
 
-add_executable(sim_main apps/sim_main.cpp)
-target_link_libraries(sim_main PRIVATE cfar_sim)
-target_compile_options(sim_main PRIVATE ${CFAR_WARNINGS})
+foreach(app sim_main pfa_check)
+  add_executable(${app} apps/${app}.cpp)
+  target_link_libraries(${app} PRIVATE cfar_sim)
+  target_compile_options(${app} PRIVATE ${CFAR_WARNINGS})
+endforeach()
 
 enable_testing()
 find_package(GTest REQUIRED)
-add_executable(test_spectrum tests/test_spectrum.cpp)
-target_link_libraries(test_spectrum PRIVATE cfar_sim GTest::gtest_main)
-target_compile_options(test_spectrum PRIVATE ${CFAR_WARNINGS})
-target_compile_definitions(test_spectrum PRIVATE CFAR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 include(GoogleTest)
-gtest_discover_tests(test_spectrum)
+foreach(test test_spectrum test_cfar)
+  add_executable(${test} tests/${test}.cpp)
+  target_link_libraries(${test} PRIVATE cfar_sim GTest::gtest_main)
+  target_compile_options(${test} PRIVATE ${CFAR_WARNINGS})
+  target_compile_definitions(${test} PRIVATE CFAR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  gtest_discover_tests(${test} DISCOVERY_TIMEOUT 30)
+endforeach()

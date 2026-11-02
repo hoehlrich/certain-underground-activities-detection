@@ -19,17 +19,18 @@ ctest --test-dir build --output-on-failure
 ```
 ./build/sim_main configs/baseline.toml          # writes results/example_spectrum.csv
 python3 scripts/plot.py results/example_spectrum.csv   # writes results/example_spectrum.png
+./build/pfa_check configs/baseline.toml         # writes results/pfa_check.csv
 ```
 
-`sim_main` simulates one window of a tone in white noise and prints the tone frequency and the bin it should land in. Parameters are in `configs/baseline.toml`; none are confirmed by the sponsor yet.
+`sim_main` runs one window of a tone in white noise through CA-CFAR and reports which bins crossed the threshold. `pfa_check` runs noise-only windows and compares the measured false-alarm rate with the design value; it exits non-zero if any design value fails. Parameters are in `configs/baseline.toml`; none are confirmed by the sponsor yet.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `include/cfar/`, `src/` | Detector library (target `cfar`). No dependency on the simulation code. |
-| `include/cfar/sim/`, `src/sim/` | Signal, noise and config (target `cfar_sim`). |
-| `apps/` | `sim_main` |
+| `include/cfar/`, `src/` | Detector library (target `cfar`): spectrum, CA-CFAR, processing config. No dependency on the simulation code. |
+| `include/cfar/sim/`, `src/sim/` | Signal, noise, simulation config, Pfa Monte Carlo (target `cfar_sim`). |
+| `apps/` | `sim_main`, `pfa_check` |
 | `tests/` | GoogleTest suite |
 | `configs/` | TOML configs |
 | `scripts/` | Plotting |
@@ -40,5 +41,5 @@ python3 scripts/plot.py results/example_spectrum.csv   # writes results/example_
 | Milestone | State |
 | --- | --- |
 | 3.2.1 Tone, white noise, Hann periodogram | Done |
-| 3.2.2 CA-CFAR and Pfa check | Next |
-| 3.2.3 Pd vs SNR | Planned |
+| 3.2.2 CA-CFAR and Pfa check | Done |
+| 3.2.3 Pd vs SNR | Next |

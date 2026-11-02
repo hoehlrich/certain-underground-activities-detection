@@ -148,11 +148,14 @@ TEST(Noise, SameSeedAndTrialReproduces) {
 
 TEST(Config, BaselineLoads) {
     const auto cfg = cfar::sim::load_config(CFAR_SOURCE_DIR "/configs/baseline.toml");
-    EXPECT_DOUBLE_EQ(cfg.f_lo_hz, 10.0);
-    EXPECT_DOUBLE_EQ(cfg.f_hi_hz, 1000.0);
-    EXPECT_DOUBLE_EQ(cfg.fs_hz, 4000.0);
-    EXPECT_EQ(cfg.nfft, 8192u);
-    EXPECT_EQ(cfg.window, "hann");
+    EXPECT_DOUBLE_EQ(cfg.proc.f_lo_hz, 10.0);
+    EXPECT_DOUBLE_EQ(cfg.proc.f_hi_hz, 1000.0);
+    EXPECT_DOUBLE_EQ(cfg.proc.fs_hz, 4000.0);
+    EXPECT_EQ(cfg.proc.nfft, 8192u);
+    EXPECT_EQ(cfg.proc.window, "hann");
+    EXPECT_FALSE(cfg.proc.pfa_bin.has_value());  // "derived"
+    EXPECT_EQ(cfg.proc.guard_per_side, 2u);
+    EXPECT_EQ(cfg.proc.train_per_side, 16u);
     EXPECT_EQ(cfg.source_kind, "tone");
     EXPECT_FALSE(cfg.f0_hz.has_value());  // "uniform"
 }
@@ -166,8 +169,8 @@ TEST(Config, FixedToneOutsideBandThrows) {
 }
 
 TEST(Config, SampleRateBelowSub032Throws) {
-    cfar::sim::SimConfig cfg;
+    cfar::ProcessingConfig cfg;
     cfg.fs_hz = 1000.0;
     cfg.f_hi_hz = 500.0;
-    EXPECT_THROW(cfar::sim::validate(cfg), std::runtime_error);
+    EXPECT_THROW(cfar::validate(cfg), std::runtime_error);
 }

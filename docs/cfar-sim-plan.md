@@ -29,7 +29,7 @@ None of these are confirmed by the sponsor. All are config values.
 | Pfa per bin | 5e-6, derived | 2028 bins searched: 1 - (1 - 5e-6)^2028 is about 0.01 (was 1e-5 over 1004 bins for the 500 Hz band) | Derived |
 | Tone frequency | Unknown, uniform over the band; drift under 0.05 Hz per window | Free-running oscillators | Bench data |
 | Rod response | Flat after antenna-factor correction | HFR-1 datasheet not yet in hand; gain and band of the loaner amplifiers unknown | NNSS (HFR-1 and amp specs) |
-| Guard cells per side | 2 (sweep 1 to 4 later) | Hann main lobe spans +/-2 bins | Sim results |
+| Guard cells per side | 2 (sweep 2 to 4 later) | Hann main lobe spans +/-2 bins, and Hann bins up to 2 apart are correlated, so 2 is the minimum for the exact alpha | Sim results |
 | Training cells per side | 16 (sweep 8, 16, 32 later) | At 0.49 Hz bins, 16 per side covers +/-8 Hz | Sim results |
 
 ## False-alarm budget
@@ -84,14 +84,28 @@ For bin k, take N training cells total (N/2 leading, N/2 lagging), skipping G gu
 
 ```
 noise_k   = (1/N) * sum over training cells of P[i]
-alpha_CA  = N * (Pfa^(-1/N) - 1)
-T_k       = alpha_CA * noise_k
+T_k       = alpha * noise_k
 detect    = P[k] > T_k
 ```
 
-- Compute the training sums with a running sum so each bin costs O(1).
-- Compute alpha once per config.
-- At band edges, use one-sided training (the available side only) and rescale alpha for the reduced N.
+The textbook alpha, `N * (Pfa^(-1/N) - 1)`, assumes independent training cells. Hann-windowed bins are not independent: the complex correlation between bins m apart is
+
+```
+rho[m] = sum(w^2 cos(2 pi m n / N)) / sum(w^2)      Hann: 1, -2/3, 1/6, 0, 0, ...
+```
+
+Correlated training cells average away less noise, so the textbook alpha lets too many false alarms through. With 16 cells per side, Monte Carlo gave 1.3x the design Pfa at 1e-2 and 1.7x at 1e-3, and the exact formula below predicts 4x at the 5e-6 baseline. The exact Pfa, for white Gaussian noise and a test cell independent of its training cells, is
+
+```
+Pfa = 1 / ( det(I + (alpha/N) C_lead) * det(I + (alpha/N) C_lag) )
+```
+
+where C_side is the Toeplitz matrix of rho over one side's cells (the two sides are far enough apart to be independent). With rho = {1} this reduces to the textbook (1 + alpha/N)^-N. Alpha is solved from it by bisection, once per config, using a Cholesky factorization for the determinants. At the baseline (16 + 16 cells, 4.96e-6), alpha is 17.46 instead of the textbook 14.86, a threshold 0.7 dB higher.
+
+- The test cell must be independent of every training cell, so G must be at least the largest lag with nonzero rho (2 for Hann). `CaCfar` throws if it isn't.
+- Training sums come from prefix sums, so each bin costs O(1).
+- Training cells stay inside the search band. A bin within G + N/2 of a band edge uses the side that fits, with alpha recomputed for N/2 cells (24.85 at baseline).
+- The formula assumes circular complex Gaussian bins, which holds away from DC and Nyquist. The band stays clear of both.
 
 Detector logic per window:
 
@@ -113,53 +127,66 @@ Q1 is the Marcum Q-function of order 1 (SNR_bin linear, not dB). The horizontal 
 
 ## Validation
 
-1. **Pfa check:** noise only, at least 1e7 bin trials per config (about 1e4 windows). Pass when measured Pfa falls inside the 95% binomial interval of the design value, for design Pfa of 1e-3, 1e-4 and 1e-5, plus the derived baseline 5e-6.
+1. **Pfa check:** noise only, at least 1e7 bin trials per config (about 1e4 windows). Pass when measured Pfa falls inside the 95% binomial interval of the design value, for design Pfa of 1e-3, 1e-4 and 1e-5, plus the derived baseline 5e-6. The interval uses the normal approximation, and the expected count is at least 100 hits at the lowest design value. Adjacent test cells are correlated, but a false alarm rarely spills into the next bin, so the binomial interval is close.
 2. **Pd vs SNR:** per-bin SNR from 0 to 25 dB in 1 dB steps, 2000 trials each, ideal curve overlaid. Report the C/N0 needed for Pd = 0.9.
 3. **ROC (optional):** at three SNRs near the knee of the Pd curve, sweep Pfa from 1e-6 to 1e-1.
 
 ## Status
 
 - **3.2.1 framework: done 2026-10-29.** Tone and white noise, Hann periodogram, TOML config, example spectrum CSV and plot. `tests/test_spectrum.cpp` checks tone placement, measured ENBW of 1.5 bins, 1.42 dB half-bin scalloping, exponential noise bins with mean sigma^2, the C/N0 to SNR_bin conversion, per-trial reproducibility and config validation.
-- **3.2.2 CA-CFAR:** next.
-- **3.2.3 Pd vs SNR:** after that.
+- **3.2.2 CA-CFAR: done 2026-10-29.** Prefix-sum noise estimate, correlation-corrected alpha, derived per-bin Pfa, one-sided training at band edges. `tests/test_cfar.cpp` checks the noise estimate against brute force, the textbook limit of alpha, the Hann correlation values, and the Pfa check below. Baseline config, 10,000 noise-only windows, 2.03e7 bin trials:
+
+  | Design Pfa | Measured | 95% interval | Windows with a false alarm |
+  | --- | --- | --- | --- |
+  | 1e-3 | 9.94e-4 | [9.86e-4, 1.01e-3] | 82% |
+  | 1e-4 | 9.78e-5 | [9.57e-5, 1.04e-4] | 17% |
+  | 1e-5 | 9.62e-6 | [8.62e-6, 1.14e-5] | 1.8% |
+  | 4.96e-6 (derived) | 4.88e-6 | [3.99e-6, 5.93e-6] | 0.96% |
+
+  The derived value holds the per-window target of 1%.
+- **3.2.3 Pd vs SNR:** next. Needs the per-window detector logic above (clustering adjacent hits, which a tone always produces in its Hann main lobe).
 
 ## Repo layout
 
 ```
-CMakeLists.txt     targets: cfar (detector library), cfar_sim (simulation), sim_main, test_spectrum
-include/cfar/      spectrum.hpp; later cfar.hpp detector.hpp metrics.hpp
-include/cfar/sim/  signal.hpp noise.hpp config.hpp
+CMakeLists.txt     targets: cfar (detector library), cfar_sim (simulation), apps, tests
+include/cfar/      spectrum.hpp cfar.hpp config.hpp; later detector.hpp
+include/cfar/sim/  signal.hpp noise.hpp config.hpp pfa.hpp
 src/, src/sim/     matching .cpp files
-apps/              sim_main.cpp (one window to CSV now, sweeps later), run_file.cpp (AD3 captures, later)
-tests/             test_spectrum.cpp; test_cfar.cpp in 3.2.2
+apps/              sim_main.cpp (one window to CSV), pfa_check.cpp (Pfa check to CSV),
+                   run_file.cpp (AD3 captures, later)
+tests/             test_spectrum.cpp test_cfar.cpp
 configs/           baseline.toml
 scripts/           plot.py (spectrum now; Pd vs SNR and ROC later)
 docs/              this file
 results/           CSV and PNG output, git-ignored
 ```
 
-`cfar` must not depend on `cfar_sim`; it becomes the delivered pipeline for real AD3 data (D-09). `cfar.hpp` will expose a function that fills a threshold array from P[k] and a params struct, written so other noise estimators can be added later behind the same signature.
+`cfar` must not depend on `cfar_sim`; it becomes the delivered pipeline for real AD3 data (D-09). In `cfar.hpp`, `ca_noise` maps P[k] and the band to a `NoiseEstimate` (level and sides used per bin). OS, GO and SO estimators can be added later behind the same signature, each with its own alpha.
 
 Dependencies: pocketfft and toml++ come in through CMake FetchContent (pinned); GoogleTest is the system package.
 
 ## Config
 
-`configs/baseline.toml` follows the section names in the shared plan doc. Built so far:
+`configs/baseline.toml` follows the section names in the shared plan doc. Processing sections are read by the detector library (`cfar::load_processing_config`), so a real-data app needs no simulation code. The simulation sections are read by `cfar::sim::load_config`.
 
-| Section | Keys |
-| --- | --- |
-| `[band]` | `f_lo_hz`, `f_hi_hz` |
-| `[acq]` | `fs_hz`, `nfft`, `window` (`"hann"` only) |
-| `[noise]` | `sigma` |
-| `[source]` | `kind` (`"tone"` only), `f0_hz` (`"uniform"` or a value in Hz), `cn0_dbhz` |
-| `[run]` | `seed` |
+| Section | Read by | Keys |
+| --- | --- | --- |
+| `[band]` | library | `f_lo_hz`, `f_hi_hz` |
+| `[acq]` | library | `fs_hz`, `nfft`, `window` (`"hann"` only) |
+| `[false_alarm]` | library | `pfa_window`, `pfa_bin` (`"derived"` or a value) |
+| `[cfar]` | library | `guard_per_side`, `train_per_side` |
+| `[noise]` | sim | `sigma` |
+| `[source]` | sim | `kind` (`"tone"` only), `f0_hz` (`"uniform"` or a value in Hz), `cn0_dbhz` |
+| `[run]` | sim | `seed` |
+| `[pfa_check]` | sim | `windows`, `design_pfa` (list; the derived value is always added) |
 
-To add in 3.2.2: `[false_alarm]` with `pfa_window = 0.01` and `pfa_bin = "derived"`, and `[cfar]` with `guard_per_side` and `train_per_side`. The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interference]` and `source.kind = "vfd"` wait for the deferred work below.
+The shared doc's `variant = "os"`, `os_rank_frac`, `welch_segments`, `[interference]` and `source.kind = "vfd"` wait for the deferred work below.
 
 | Output file | Contents |
 | --- | --- |
-| example_spectrum.csv | One window's P[k] (threshold and detections added in 3.2.2), for a slide |
-| pfa_check.csv | Config, design Pfa, measured Pfa, 95% interval |
+| example_spectrum.csv | One window's P[k], CA threshold and per-bin detections, for a slide |
+| pfa_check.csv | Config, design Pfa, cells, hits, measured Pfa, 95% interval, pass, per-window false-alarm rate |
 | pd_vs_snr.csv | Scenario, SNR, Pd, trials |
 | roc.csv | SNR, Pfa, Pd |
 
